@@ -6,6 +6,8 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.ViewGroup;
+import android.view.ViewParent;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -46,6 +48,7 @@ public class SecondActivity extends AppCompatActivity {
         });
 
         bView.setOnTouchListener(new View.OnTouchListener() {
+
             private long downTime = 0;
 
             @Override
@@ -53,42 +56,53 @@ public class SecondActivity extends AppCompatActivity {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
                         downTime = SystemClock.uptimeMillis();
+                        forwardMotionEvent(bView, event);
                         break;
 
                     case MotionEvent.ACTION_UP:
                         long duration = SystemClock.uptimeMillis() - downTime;
-
-                        // 获取系统长按阈值
-                        int longPressTimeout = ViewConfiguration.get(v.getContext()).getLongPressTimeout();
-
-                        if (duration < longPressTimeout) {
-                            // 是点击，不是长按 -> 转发给 BView
-                            forwardTouchToBView(event);
+                        if (duration < ViewConfiguration.getLongPressTimeout()) {
+                            forwardMotionEvent(bView, event);
                         }
                         break;
                 }
                 return false;
             }
 
-            private void forwardTouchToBView(MotionEvent originalEvent) {
-
-                float x = originalEvent.getX();
-                float y = originalEvent.getY();
-
-                long downTime = SystemClock.uptimeMillis();
-
-                // 模拟点击事件（down -> up）
-                MotionEvent down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0);
-                MotionEvent up = MotionEvent.obtain(downTime, downTime + 50, MotionEvent.ACTION_UP, x, y, 0);
-
-                aView.dispatchTouchEvent(down);
-                aView.dispatchTouchEvent(up);
-
-                down.recycle();
-                up.recycle();
-            }
         });
 
+    }
 
+
+    private void forwardMotionEvent(View bView, MotionEvent event) {
+        ViewParent viewParent = bView.getParent();
+        if (viewParent instanceof ViewGroup) {
+            ViewGroup viewGroup = (ViewGroup) viewParent;
+            int childCount = viewGroup.getChildCount();
+            if (childCount > 0) {
+                View view = viewGroup.getChildAt(0);
+                if (view != bView) {
+                    view.dispatchTouchEvent(event);
+                }
+            }
+        }
+    }
+
+    private void forwardTouchToBView(View view, MotionEvent originalEvent) {
+
+        float x = originalEvent.getX();
+        float y = originalEvent.getY();
+
+        long downTime = SystemClock.uptimeMillis();
+
+        // 模拟点击事件（down -> up）
+        MotionEvent down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0);
+        MotionEvent up = MotionEvent.obtain(downTime, downTime + 50, MotionEvent.ACTION_UP, x, y, 0);
+
+        view.dispatchTouchEvent(down);
+        view.dispatchTouchEvent(up);
+
+        down.recycle();
+        up.recycle();
     }
 }
